@@ -8,7 +8,10 @@ export const accessChat = async(req,res)=>{
     const {userID} = req.body
 
     const userData = await User.findById(userID).select("-password")
-    console.log(userData)
+    // console.log(userData)
+    if(!userData){
+        return res.status(404).json({message:"No user found "})
+    }
     
     if(!userID){
         return res.status(404).json({message:"No user ID present"})
@@ -31,7 +34,7 @@ export const accessChat = async(req,res)=>{
                 users:[req.user,userID]
             })
             await newChat.save()
-            res.status(200).json({message:"All chats"})
+            res.status(200).json({message:"All chats",chat:newChat})
         } catch (error) {
             console.log(error)
             res.status(500).json({message:"Internal server error in accessing chat",error})

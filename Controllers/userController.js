@@ -18,10 +18,10 @@ export const register = async (req, res) => {
     }
 
     // ----------------------------password validation------------------------------------
-    console.log(`${password}`);
+    // console.log(`${password}`);
     const regexPass =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
-    console.log(regexPass.test(password));
+    // console.log(regexPass.test(password));
     if (!regexPass.test(password)) {
       return res.status(400).json({
         message:
@@ -82,7 +82,7 @@ export const activation = async (req, res) => {
       { $set: { activation: true, randomString: "" } },
       { new: true }
     );
-    console.log(activate);
+    // console.log(activate);
     res.status(200).json({ message: "User activated successfully" });
   } catch (error) {
     res
@@ -96,7 +96,9 @@ export const login = async (req, res) => {
 
   // validation
   // ---------------------existing user----------------------
-  const existingUser = await User.findOne({ email: email });
+  const existingUser = await User.findOne({ email: email }).populate(
+    "services"
+  );
   if (!existingUser) {
     return res.status(404).json({ message: "No user found in this email" });
   }
@@ -121,7 +123,7 @@ export const login = async (req, res) => {
       email: email,
       userName: existingUser.userName,
       role: existingUser.role,
-      userID: existingUser._id
+      userID: existingUser._id,
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET_KEY);
     if (!token) {
@@ -129,7 +131,7 @@ export const login = async (req, res) => {
         .status(500)
         .json({ message: "Internal server error in creating token" });
     }
-    res.status(200).json({ message: "Login successfull", token });
+    res.status(200).json({ message: "Login successfull", token, existingUser });
   } catch (error) {
     res
       .status(500)
@@ -188,51 +190,46 @@ export const validatePassword = async (req, res) => {
     return res.status(404).json({ message: "Invalid Link" });
   }
   try {
-
     // ---------------------update user randomString--------------------
     await User.findOneAndUpdate(
-      {_id: user._id},
-      {$set:{randomString: '', randomStringExpiration: null}},
-      {new:true}
-    )
-    res.status(200).json({message:"Please reset Password", userID: user._id})
-  } catch (error) {
+      { _id: user._id },
+      { $set: { randomString: "", randomStringExpiration: null } },
+      { new: true }
+    );
     res
-      .status(500)
-      .json({
-        message: "Internal server error in validating password change link",
-      });
+      .status(200)
+      .json({ message: "Please reset Password", userID: user._id });
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal server error in validating password change link",
+    });
   }
 };
 
 export const resetPassword = async (req, res) => {
   const { newPassword, userID } = req.body;
-console.log(newPassword, userID)
+  // console.log(newPassword, userID);
   // validation
-
-
 
   // -----------------------------validate User and String---------------------
   const existingUser = await User.findOne({
     _id: userID,
-    
   });
   if (!existingUser) {
     return res.status(404).json({ message: "userNot found" });
   }
 
-
-   // ----------------------------password validation------------------------------------
-   console.log(`${newPassword}`);
-   const regexPass =
-     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
-   console.log(regexPass.test(newPassword));
-   if (!regexPass.test(newPassword)) {
-     return res.status(400).json({
-       message:
-         "Password must be at least 6 characters long and include uppercase letters, lowercase letters, numbers, and symbols.",
-     });
-   }
+  // ----------------------------password validation------------------------------------
+  // console.log(`${newPassword}`);
+  const regexPass =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
+  // console.log(regexPass.test(newPassword));
+  if (!regexPass.test(newPassword)) {
+    return res.status(400).json({
+      message:
+        "Password must be at least 6 characters long and include uppercase letters, lowercase letters, numbers, and symbols.",
+    });
+  }
 
   try {
     //   ---------------------------hash password--------------------------------------
@@ -247,11 +244,71 @@ console.log(newPassword, userID)
     res.status(201).json({ message: "Password reset Successfull" });
   } catch (error) {
     console.log(error);
-    res
-      .status(500)
-      .json({
-        message: "Internal server error in updating new Password",
-        error,
-      });
+    res.status(500).json({
+      message: "Internal server error in updating new Password",
+      error,
+    });
   }
 };
+
+export const fetchUser = async (req, res) => {
+  const {id} =req.body
+  // validate
+  const existingUser = await User.findById(id).populate(
+    "services"
+  );
+  if(!existingUser){
+    return res.status(404).json({message:"User not found"})
+  }
+  try {
+res.status(200).json({existingUser})
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error in fetching User" });
+  }
+};
+
+
+export const timeSlotUpdate = async(req,res)=>{
+  const {timeSlots, userID}= req.body
+  // validate
+  if(!timeSlots || !userID){
+    return res.status(400).json({message:"All values are must"})
+  }
+// -------------------------validate existing user------------------------
+  const existingUser = await User.findById(userID).populate(
+    "services"
+  );
+  if(!existingUser){
+    return res.status(404).json({message:"No user found"})
+  }
+  try {
+    const updateExistingUser = await User.findOneAndUpdate({_id: userID},{$set:{timeSlots:timeSlots}},{new: true}).populate(
+      "services"
+    );
+    // console.log(updateExistingUser)
+    res.status(200).json({message:"Time slot Updated", userInfo: updateExistingUser})
+  } catch (error) {
+    res.status(500).json({message:"Internal server error in updating timeSlot"})
+  }
+}
+
+export const editUser = async(req,res)=>{
+  const{userID, userName, email,phone,bio, gender} = req.body
+  // validate
+  if(!userID || !userName || !email || !phone || !gender){
+    return res.status(400).json({message:"There is an empty value or no userID"})
+  }
+
+  // -------------------------find existing User ----------------------------
+  const existingUser = await User.findById(userID)
+  if(!existingUser){
+    return res.status(404).json({message:"No user found"})
+  }
+  try {
+    const updatedUser = await User.findOneAndUpdate({_id:userID},{userName, email, phone, gender,bio},{new:true}).populate('services')
+    // console.log(updatedUser)
+    res.status(200).json({message:"User edited Successfully", userInfo: updatedUser})
+  } catch (error) {
+    res.status(500).json({message:"Internal server error in editing User"})
+  }
+}

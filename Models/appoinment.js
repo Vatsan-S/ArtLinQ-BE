@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
+import { v4 as uuidv4 } from 'uuid';
+
 
 const appoinmentSchema = new mongoose.Schema({
     appoinmentID:{
         type: String,
         unique: true,
-        default: `AP-${Date.now().toString(32).slice(0,7)}--${Math.random().toString(36).substr(2, 5)}`
+        
     },
     userID:{
         type: mongoose.Types.ObjectId,
@@ -29,5 +31,13 @@ const appoinmentSchema = new mongoose.Schema({
     }
 },{timestamps:true})
 
+
+
+appoinmentSchema.pre('save',function(next){
+    if(this.isNew){
+        this.appoinmentID = `AP-${uuidv4()}`
+    }
+    next()
+})
 const Appoinment = mongoose.model("Appoinment",appoinmentSchema)
 export default Appoinment

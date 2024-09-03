@@ -37,11 +37,17 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    services:{
-        type: [],
+    services:[{
+        type: mongoose.Types.ObjectId,
+        ref: 'Service',
         default: []
-    },
-    appoinments:[]
+    }],
+    appoinments:[],
+    timeSlots:[],
+    bio:{
+        type: String,
+        default:''
+    }
 })
 
 const User = mongoose.model("User", userSchema)
